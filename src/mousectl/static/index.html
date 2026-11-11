@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mousectl</title>
+<style>
+:root {
+  --bg: #f5f5f4; --surface: #ffffff; --surface-2: #fafaf9; --ink: #18181b; --ink-2: #52525b;
+  --muted: #a1a1aa; --line: #e4e4e7; --line-2: #d4d4d8;
+  --accent: #2563eb; --accent-ink: #ffffff; --accent-soft: #dbeafe; --accent-line: #93c5fd;
+  --ok: #16a34a; --warn: #d97706; --err: #dc2626; --body: #e7e5e4; --body-edge: #c4c4cc;
+  --radius: 12px; --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0c0e; --surface: #16161a; --surface-2: #1c1c21; --ink: #f4f4f5; --ink-2: #a1a1aa;
+    --muted: #71717a; --line: #27272a; --line-2: #3f3f46; --body: #232329; --body-edge: #3f3f46;
+    --accent: #60a5fa; --accent-ink: #0b1220; --accent-soft: #172554; --accent-line: #1e40af;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.topbar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.topbar-inner { max-width: 1100px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 15px; }
+.brand-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.pill { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent); }
+.dot.warn { background: var(--warn); }
+.grow { flex: 1; }
+.btn { border: 1px solid var(--line-2); background: var(--surface); padding: 7px 13px; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 13px; }
+.btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.small { padding: 4px 10px; font-size: 12.5px; }
+.unsaved { font-size: 12.5px; color: var(--warn); }
+main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 64px; }
+.nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+.nav button { border: 0; background: none; padding: 10px 14px; cursor: pointer; color: var(--ink-2); font-weight: 550; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.nav button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; min-width: 0; }
+.panel-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.panel-title { font-weight: 650; }
+.panel-sub, .muted { color: var(--ink-2); font-size: 12.5px; }
+.panel-body { padding: 16px 18px; }
+.banner { margin-bottom: 16px; padding: 10px 12px; border-radius: 8px; font-size: 13px; border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+.banner code, .note code { background: var(--surface-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+.note { color: var(--ink-2); font-size: 12.5px; margin: 10px 0 0; }
+.label-sm { font-size: 11.5px; color: var(--ink-2); margin: 0 0 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.field { margin-bottom: 16px; } .field:last-child { margin-bottom: 0; }
+.field-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 13px; gap: 8px; }
+.val { font-variant-numeric: tabular-nums; font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+select, input[type=number] { padding: 6px 9px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); }
+.seg { display: inline-flex; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; flex-wrap: wrap; }
+.seg button { border: 0; background: none; padding: 5px 13px; border-radius: 6px; cursor: pointer; color: var(--ink-2); font-weight: 550; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.opt { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 8px 8px; cursor: pointer; font-size: 12.5px; font-weight: 550; text-align: center; }
+.opt:hover { border-color: var(--muted); background: var(--surface); }
+.opt.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.opt small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.split { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+/* mouse diagram */
+.mouse { width: 100%; max-width: 260px; display: block; margin: 0 auto; }
+.mouse .shell { fill: var(--body); stroke: var(--body-edge); stroke-width: 2; }
+.mouse .b { fill: var(--surface); stroke: var(--body-edge); stroke-width: 1.5; cursor: pointer; transition: fill .12s; }
+.mouse .b:hover { fill: var(--accent-soft); }
+.mouse .b.sel { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+.mouse .b.flash { fill: var(--ok); }
+.mouse text { font-size: 10px; fill: var(--ink-2); pointer-events: none; }
+.binds { list-style: none; margin: 14px 0 0; padding: 0; }
+.binds li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.binds li:hover { background: var(--surface-2); }
+.binds li.sel { background: var(--accent-soft); color: var(--accent); }
+.binds li span:last-child { color: var(--ink-2); text-align: right; }
+.binds li.sel span:last-child { color: inherit; }
+.chip { display: inline-block; padding: 2px 8px; margin: 2px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 6px; font-weight: 600; font-size: 12.5px; background: var(--surface-2); }
+.capture { border: 2px dashed var(--line-2); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; min-height: 60px; }
+.capture.on { border-color: var(--accent); background: var(--accent-soft); }
+.steps { list-style: none; padding: 0; margin: 0 0 10px; }
+.steps li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.stage { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface-2); }
+.stage.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.stage.off { opacity: .55; }
+.big { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); position: relative; }
+.sw.on::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); }
+.colorpick { width: 28px; height: 28px; border: 0; padding: 0; border-radius: 50%; overflow: hidden; cursor: pointer; background: none; }
+.colorpick::-webkit-color-swatch-wrapper { padding: 0; } .colorpick::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.colorpick::-moz-color-swatch { border: 0; border-radius: 50%; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(12px); opacity: 0; pointer-events: none; max-width: calc(100vw - 32px);
+  background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 500; transition: .2s; z-index: 20; }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+.toast.err { background: var(--err); color: #fff; }
+.foot { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
+@media (max-width: 640px) { .topbar-inner, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner">
+  <div class="brand"><span class="brand-mark">m</span>mousectl</div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="devtxt">Looking for the mouse…</span></div>
+  <div class="pill" id="dpipill" hidden></div>
+  <div class="grow"></div>
+  <span class="unsaved" id="unsaved" hidden>Unsaved changes</span>
+  <button class="btn" id="revert" disabled>Discard</button>
+  <button class="btn primary" id="save" disabled>Apply &amp; save</button>
+</div></header>
+
+<main>
+  <div class="banner" id="svc-banner" hidden></div>
+  <nav class="nav" role="tablist">
+    <button data-view="buttons" aria-selected="true">Buttons</button>
+    <button data-view="dpi" aria-selected="false">DPI</button>
+    <button data-view="light" aria-selected="false">Lighting</button>
+    <button data-view="more" aria-selected="false">Scroll &amp; more</button>
+  </nav>
+
+  <section data-panel="buttons">
+    <div class="split">
+      <div class="panel"><div class="panel-body">
+        <svg class="mouse" viewBox="0 0 200 300" id="mousesvg">
+          <path class="shell" d="M100 8 C 40 8 22 60 22 120 L 22 200 C 22 260 60 292 100 292 C 140 292 178 260 178 200 L 178 120 C 178 60 160 8 100 8 Z"/>
+          <path class="b" data-b="left" d="M96 12 C 48 14 28 56 26 110 L 96 110 Z"/>
+          <path class="b" data-b="right" d="M104 12 C 152 14 172 56 174 110 L 104 110 Z"/>
+          <rect class="b" data-b="middle" x="90" y="30" width="20" height="38" rx="10"/>
+          <rect class="b" data-b="top_front" x="92" y="76" width="16" height="12" rx="3"/>
+          <rect class="b" data-b="top_back" x="92" y="92" width="16" height="12" rx="3"/>
+          <rect class="b" data-b="side_front" x="10" y="128" width="16" height="30" rx="5"/>
+          <rect class="b" data-b="side_back" x="10" y="162" width="16" height="30" rx="5"/>
+          <text x="40" y="70">L</text><text x="150" y="70">R</text>
+          <text x="114" y="86">DPI</text><text x="114" y="102">DPI</text>
+        </svg>
+        <ul class="binds" id="bindlist"></ul>
+        <p class="note">With the background service running, pressing a DPI button or a button bound to keys/media/macro highlights it here.</p>
+      </div></div>
+      <div class="panel" id="editor"></div>
+    </div>
+  </section>
+
+  <section data-panel="dpi" hidden>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">DPI stages</span><span class="panel-sub">the DPI buttons step through the enabled stages</span></div>
+      <div class="panel-body"><div class="stages" id="stages"></div>
+        <p class="note">This sensor does 200–3000 DPI in steps of 200. Click "Use now" to switch stage from here.</p></div>
+    </div>
+  </section>
+
+  <section data-panel="light" hidden>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Lighting</span><span class="panel-sub">changes preview on the mouse immediately</span></div>
+      <div class="panel-body" id="lightbody"></div>
+    </div>
+  </section>
+
+  <section data-panel="more" hidden>
+    <div class="panel"><div class="panel-head"><span class="panel-title">Scroll wheel</span></div>
+      <div class="panel-body"><div class="seg" id="scrollseg"></div>
+        <p class="note">"Volume" turns the wheel into a volume knob (scrolling stops working).</p></div></div>
+    <div class="panel"><div class="panel-head"><span class="panel-title">Fire button speed</span><span class="panel-sub">for buttons set to "Fire (auto-click)"</span></div>
+      <div class="panel-body"><div class="field"><div class="field-top"><label>Click interval</label><span class="val" id="firev"></span></div>
+        <input type="range" id="fire" min="0" max="255"></div></div></div>
+    <div class="panel"><div class="panel-head"><span class="panel-title">Polling rate</span></div>
+      <div class="panel-body"><div class="big" id="rate">–</div>
+        <p class="note">This mouse is a USB 1.1 low-speed device that asks to be polled every 10 ms; the PC rounds that to 8 ms, i.e. 125 Hz.
+          That is the most it can do on a standard kernel: Linux's <code>usbhid.mousepoll</code> override is ignored by USB 3 controllers (measured: still 125 Hz at a 1 ms setting).</p></div></div>
+  </section>
+  <div class="foot">mousectl · unofficial · protocol from Instant-A704F-Mouse-Utilities and OpenRGB</div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = id => document.getElementById(id);
+const h = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e[k] = v;
+    else if (k === "style") e.style.cssText = v; else if (v === true) e.setAttribute(k, ""); else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null) e.append(c);
+  return e;
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+function toast(m, err) { const t = $("toast"); t.textContent = m; t.className = "toast show" + (err ? " err" : "");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "toast", err ? 6000 : 2200); }
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? { headers: { "X-Token": TOKEN } } :
+    { method: "POST", headers: { "X-Token": TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+  if (body !== undefined && j.ok === false) throw new Error(j.error);
+  return j;
+}
+
+let M, C, C0, LIVE, sel = "top_front", capturing = null;
+
+document.querySelectorAll(".nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== b.dataset.view);
+});
+
+// ------------------------------------------------------------ helpers
+const KEYLABEL = k => ({ ctrl: "Ctrl", shift: "Shift", alt: "Alt", super: "Super", rctrl: "Right Ctrl", rshift: "Right Shift", altgr: "AltGr", rsuper: "Right Super",
+  esc: "Esc", enter: "Enter", space: "Space", backspace: "Backspace", tab: "Tab", pageup: "PgUp", pagedown: "PgDn", printscreen: "PrtSc",
+  up: "↑", down: "↓", left: "←", right: "→", leftbrace: "[", rightbrace: "]", minus: "-", equal: "=", comma: ",", dot: ".", slash: "/",
+  backslash: "\\", semicolon: ";", apostrophe: "'", grave: "`" }[k] || k.toUpperCase());
+function describe(b) {
+  if (!b) return "";
+  if (M.mouse_actions[b.action]) return M.mouse_actions[b.action];
+  if (b.action === "keys") return b.keys.map(KEYLABEL).join(" + ");
+  if (b.action === "media") return M.media[b.key];
+  if (b.action === "macro") return "Macro" + (b.name ? `: ${b.name}` : ` (${b.steps.length} steps)`);
+  if (b.action === "disabled") return "Disabled";
+  return b.action;
+}
+const CODE2KEY = c => {
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3).toLowerCase();
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  if (/^F\d{1,2}$/.test(c)) return c.toLowerCase();
+  return { Enter: "enter", NumpadEnter: "enter", Escape: "esc", Backspace: "backspace", Tab: "tab", Space: "space", Minus: "minus", Equal: "equal",
+    BracketLeft: "leftbrace", BracketRight: "rightbrace", Backslash: "backslash", Semicolon: "semicolon", Quote: "apostrophe", Backquote: "grave",
+    Comma: "comma", Period: "dot", Slash: "slash", CapsLock: "capslock", PrintScreen: "printscreen", ScrollLock: "scrolllock", Pause: "pause",
+    Insert: "insert", Home: "home", PageUp: "pageup", Delete: "delete", End: "end", PageDown: "pagedown", ArrowRight: "right", ArrowLeft: "left",
+    ArrowDown: "down", ArrowUp: "up", ContextMenu: "menu", ControlLeft: "ctrl", ShiftLeft: "shift", AltLeft: "alt", MetaLeft: "super",
+    ControlRight: "rctrl", ShiftRight: "rshift", AltRight: "altgr", MetaRight: "rsuper", OSLeft: "super", OSRight: "rsuper" }[c];
+};
+const QUICK = [
+  ["Copy", { action: "keys", keys: ["ctrl", "c"] }], ["Paste", { action: "keys", keys: ["ctrl", "v"] }],
+  ["Undo", { action: "keys", keys: ["ctrl", "z"] }], ["Redo", { action: "keys", keys: ["ctrl", "shift", "z"] }],
+  ["Next workspace", { action: "keys", keys: ["super", "pagedown"] }], ["Previous workspace", { action: "keys", keys: ["super", "pageup"] }],
+  ["Overview", { action: "keys", keys: ["super"] }], ["Screenshot", { action: "keys", keys: ["printscreen"] }],
+  ["Close tab", { action: "keys", keys: ["ctrl", "w"] }], ["Reopen tab", { action: "keys", keys: ["ctrl", "shift", "t"] }],
+  ["Switch window", { action: "keys", keys: ["alt", "tab"] }], ["Volume up", { action: "media", key: "volume_up" }],
+  ["Volume down", { action: "media", key: "volume_down" }], ["Play / pause", { action: "media", key: "play_pause" }],
+  ["Next track", { action: "media", key: "next" }], ["Mute", { action: "media", key: "mute" }],
+];
+
+// ------------------------------------------------------------ buttons
+function renderButtons() {
+  document.querySelectorAll("#mousesvg .b").forEach(e => { e.classList.toggle("sel", e.dataset.b === sel); e.onclick = () => { sel = e.dataset.b; capturing = null; renderButtons(); }; });
+  $("bindlist").replaceChildren(...Object.entries(M.buttons).map(([k, lab]) =>
+    h("li", { class: k === sel ? "sel" : "", onclick: () => { sel = k; capturing = null; renderButtons(); } }, h("span", {}, lab), h("span", {}, describe(C.buttons[k])))));
+  const b = C.buttons[sel], kind = M.mouse_actions[b.action] ? "mouse" : b.action;
+  const set = nb => { C.buttons[sel] = nb; dirty(); renderButtons(); };
+  const kinds = [["mouse", "Mouse action"], ["keys", "Key combo"], ["media", "Media key"], ["macro", "Macro"], ["disabled", "Disabled"]];
+  const body = h("div", { class: "panel-body" });
+  body.append(h("div", { class: "field" }, h("div", { class: "seg" }, kinds.map(([k, lab]) => h("button", { "aria-pressed": kind === k, onclick: () => {
+    if (k === kind) return;
+    set(k === "mouse" ? { action: "left_click" } : k === "keys" ? { action: "keys", keys: ["ctrl", "c"] } : k === "media" ? { action: "media", key: "volume_up" }
+      : k === "macro" ? { action: "macro", name: "", steps: [{ keys: ["ctrl", "c"] }] } : { action: "disabled" });
+  } }, lab)))));
+  if (kind === "mouse") {
+    body.append(h("div", { class: "grid" }, Object.entries(M.mouse_actions).map(([k, lab]) => h("button", { class: "opt" + (b.action === k ? " on" : ""), onclick: () => set({ action: k }) }, lab))));
+  } else if (kind === "keys") {
+    const cap = h("div", { class: "capture" + (capturing === "keys" ? " on" : ""), tabindex: 0,
+      onclick: () => { capturing = "keys"; capturing_keys = []; renderButtons(); } },
+      capturing === "keys" ? h("div", {}, "Press the keys now… (release to finish)") : h("div", {}, b.keys.map(k => h("span", { class: "chip" }, KEYLABEL(k))), h("div", { class: "muted", style: "margin-top:6px" }, "Click, then press a key or shortcut to record it")));
+    body.append(h("div", { class: "field" }, cap), h("p", { class: "label-sm" }, "Quick picks"),
+      h("div", { class: "grid" }, QUICK.map(([lab, q]) => h("button", { class: "opt" + (JSON.stringify(q) === JSON.stringify(b) ? " on" : ""), onclick: () => set(clone(q)) }, lab))),
+      h("p", { class: "note" }, "Held keys stay held while you hold the button. Super shortcuts are GNOME defaults."));
+  } else if (kind === "media") {
+    body.append(h("div", { class: "grid" }, Object.entries(M.media).map(([k, lab]) => h("button", { class: "opt" + (b.key === k ? " on" : ""), onclick: () => set({ action: "media", key: k }) }, lab))));
+  } else if (kind === "macro") {
+    const name = h("input", { type: "text", value: b.name || "", placeholder: "Name (optional)", style: "padding:6px 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface-2);width:100%" });
+    name.onchange = () => { b.name = name.value; dirty(); renderButtons(); };
+    const steps = h("ul", { class: "steps" }, b.steps.map((st, i) => h("li", {},
+      h("span", { class: "muted" }, `${i + 1}.`),
+      st.keys ? h("span", {}, st.keys.map(k => h("span", { class: "chip" }, KEYLABEL(k)))) :
+      st.media ? h("span", {}, M.media[st.media]) :
+      (() => { const n = h("input", { type: "number", min: 0, max: 5000, step: 10, value: st.delay }); n.onchange = () => { st.delay = Math.max(0, Math.min(5000, +n.value || 0)); dirty(); }; return h("span", {}, "wait ", n, " ms"); })(),
+      h("div", { class: "grow" }),
+      h("button", { class: "btn small", onclick: () => { b.steps.splice(i, 1); if (!b.steps.length) b.steps.push({ delay: 100 }); dirty(); renderButtons(); } }, "Remove"))));
+    const mediaSel = h("select", {}, Object.entries(M.media).map(([k, lab]) => h("option", { value: k }, lab)));
+    body.append(h("div", { class: "field" }, name), steps,
+      capturing === "macro" ? h("div", { class: "capture on" }, "Press a key or shortcut to add it…") : null,
+      h("div", { class: "row" },
+        h("button", { class: "btn small", onclick: () => { capturing = "macro"; capturing_keys = []; renderButtons(); }, disabled: b.steps.length >= 32 }, "+ Keys"),
+        h("button", { class: "btn small", onclick: () => { b.steps.push({ delay: 100 }); dirty(); renderButtons(); }, disabled: b.steps.length >= 32 }, "+ Delay"),
+        mediaSel, h("button", { class: "btn small", onclick: () => { b.steps.push({ media: mediaSel.value }); dirty(); renderButtons(); }, disabled: b.steps.length >= 32 }, "+ Media")),
+      h("p", { class: "note" }, "Runs once per press."));
+  } else {
+    body.append(h("p", { class: "muted" }, "This button does nothing."));
+  }
+  const leftOk = Object.values(C.buttons).some(x => x.action === "left_click");
+  if (!leftOk) body.append(h("p", { class: "note", style: "color:var(--err)" }, "Keep at least one button as Left click, or you won't be able to click."));
+  $("editor").replaceChildren(h("div", { class: "panel-head" }, h("span", { class: "panel-title" }, M.buttons[sel]), h("span", { class: "panel-sub" }, describe(b))), body);
+}
+
+let capturing_keys = [];
+window.addEventListener("keydown", e => {
+  if (!capturing) return;
+  e.preventDefault(); e.stopPropagation();
+  const k = CODE2KEY(e.code);
+  if (k && !capturing_keys.includes(k) && capturing_keys.length < 6) capturing_keys.push(k);
+}, true);
+window.addEventListener("keyup", e => {
+  if (!capturing || !capturing_keys.length) return;
+  e.preventDefault();
+  const keys = [...capturing_keys].sort((a, b) => (M.modifiers.includes(b) - M.modifiers.includes(a)));
+  if (capturing === "keys") C.buttons[sel] = { action: "keys", keys };
+  else if (capturing === "macro") C.buttons[sel].steps.push({ keys });
+  capturing = null; capturing_keys = []; dirty(); renderButtons();
+}, true);
+
+// ------------------------------------------------------------ DPI
+function renderDpi() {
+  const d = C.dpi, md = M.dpi;
+  $("stages").replaceChildren(...d.stages.map((s, i) => {
+    const r = h("input", { type: "range", min: md.min, max: md.max, step: md.step, value: s.dpi });
+    const v = h("div", { class: "big" }, `${s.dpi}`);
+    r.oninput = () => { s.dpi = +r.value; v.textContent = r.value; dirty(); };
+    const en = h("input", { type: "checkbox", checked: s.enabled });
+    en.onchange = () => { s.enabled = en.checked; if (!d.stages.some(x => x.enabled)) { s.enabled = true; en.checked = true; toast("At least one stage stays on", true); }
+      if (!d.stages[d.active].enabled) d.active = d.stages.findIndex(x => x.enabled); dirty(); renderDpi(); };
+    return h("div", { class: "stage" + (d.active === i ? " active" : "") + (s.enabled ? "" : " off") },
+      h("div", { class: "row" }, h("span", { class: "label-sm", style: "margin:0" }, `Stage ${i + 1}`), h("div", { class: "grow" }), h("label", { class: "muted" }, en, " on")),
+      v, h("div", { class: "muted", style: "margin-bottom:8px" }, "DPI"), r,
+      h("div", { style: "margin-top:10px" }, d.active === i ? h("span", { class: "muted" }, "Active") :
+        h("button", { class: "btn small", disabled: !s.enabled, onclick: () => { d.active = i; dirty(); renderDpi(); applyNow(["dpi"]); } }, "Use now")));
+  }));
+}
+
+// ------------------------------------------------------------ lighting
+const COLOURS = ["#ff0000", "#ff6a00", "#ffd000", "#00ff40", "#00e5ff", "#0050ff", "#8a2be2", "#ff00c8", "#ffffff"];
+function renderLight() {
+  const li = C.lighting, mode = M.light_modes[li.mode];
+  const set = p => { Object.assign(li, p); dirty(); renderLight(); applyNow(["lighting"]); };
+  const pick = h("input", { type: "color", class: "colorpick", value: li.color });
+  pick.onchange = () => set({ color: pick.value });
+  const sp = h("input", { type: "range", min: 0, max: M.speed_max, value: li.speed }); sp.onchange = () => set({ speed: +sp.value });
+  const br = h("input", { type: "range", min: 0, max: M.brightness_max, value: li.brightness }); br.onchange = () => set({ brightness: +br.value });
+  $("lightbody").replaceChildren(
+    h("div", { class: "field" }, h("p", { class: "label-sm" }, "Effect"), h("div", { class: "grid" }, Object.entries(M.light_modes).map(([k, m]) =>
+      h("button", { class: "opt" + (li.mode === k ? " on" : ""), onclick: () => set({ mode: k }) }, m.name, m.verified ? null : h("small", {}, "untested on this mouse"))))),
+    mode.color ? h("div", { class: "field" }, h("p", { class: "label-sm" }, "Colour"), h("div", { class: "swatches" },
+      COLOURS.map(c => h("button", { class: "sw" + (li.color === c ? " on" : ""), style: `background:${c}`, onclick: () => set({ color: c }) })), pick)) : null,
+    mode.speed ? h("div", { class: "field" }, h("div", { class: "field-top" }, h("label", {}, "Speed"), h("span", { class: "val" }, `${li.speed} / ${M.speed_max}`)), sp) : null,
+    li.mode !== "off" && li.mode !== "rainbow_breathing" ? h("div", { class: "field" }, h("div", { class: "field-top" }, h("label", {}, "Brightness"), h("span", { class: "val" }, `${li.brightness} / ${M.brightness_max}`)), br) : null,
+    h("p", { class: "note" }, "Colours are 4 bits per channel on this mouse (4096 colours), so very dark or pastel shades get rounded."));
+}
+
+// ------------------------------------------------------------ more
+function renderMore() {
+  $("scrollseg").replaceChildren(...M.scroll.map(s => h("button", { "aria-pressed": C.scroll === s, onclick: () => { C.scroll = s; dirty(); renderMore(); applyNow(["scroll"]); } },
+    { normal: "Normal", reversed: "Reversed", volume: "Volume" }[s])));
+  const f = $("fire"); f.value = C.fire_rate;
+  const ms = v => Math.round(8 + v * (2000 - 8) / 255);
+  $("firev").textContent = `≈ ${ms(C.fire_rate)} ms`;
+  f.oninput = () => { C.fire_rate = +f.value; $("firev").textContent = `≈ ${ms(C.fire_rate)} ms`; dirty(); };
+  f.onchange = () => applyNow(["fire"]);
+  $("rate").textContent = LIVE.device.report_rate ? `${LIVE.device.report_rate} Hz` : "–";
+}
+
+// ------------------------------------------------------------ apply / state
+function dirty() {
+  const d = JSON.stringify(C) !== JSON.stringify(C0);
+  $("save").disabled = !d; $("revert").disabled = !d; $("unsaved").hidden = !d;
+}
+async function applyNow(parts) {   // live preview without saving
+  try { await api("/api/apply", { config: C, parts, save: false }); } catch (e) { toast(e.message, true); }
+}
+$("save").onclick = async () => {
+  try { const r = await api("/api/apply", { config: C, save: true }); C0 = clone(r.config); C = clone(C0); dirty(); renderAll();
+    toast(r.applied ? "Applied and saved" : "Saved (mouse not connected)"); } catch (e) { toast(e.message, true); }
+};
+$("revert").onclick = async () => { C = clone(C0); dirty(); renderAll(); applyNow(); };
+
+function renderLive() {
+  const dev = LIVE.device, d = LIVE.daemon;
+  $("dot").className = "dot " + (dev.connected ? (d ? "on" : "warn") : "");
+  $("devtxt").textContent = dev.connected ? "Instant A704 mouse" : "Mouse not connected";
+  const ban = $("svc-banner");
+  const needs = Object.values(C.buttons).some(b => ["keys", "media", "macro"].includes(b.action));
+  ban.hidden = !!d;
+  ban.innerHTML = d ? "" : "The background service isn't running" + (needs ? ", so key / media / macro buttons won't do anything" : "") +
+    ", and your settings won't come back after you re-plug the mouse. Install it with <code>./install.sh</code> in <code>mouse-instant</code>.";
+  if (d && d.active_dpi != null && d.active_dpi < 4) { $("dpipill").hidden = false; $("dpipill").textContent = `DPI ${C0.dpi.stages[d.active_dpi]?.dpi ?? "?"}`; }
+  if (d?.last_button && Date.now() / 1000 - d.last_button.time < 2.5) {
+    const el = document.querySelector(`#mousesvg [data-b="${d.last_button.name}"]`);
+    if (el && !el.classList.contains("flash")) { el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 600);
+      if (sel !== d.last_button.name && !capturing) { sel = d.last_button.name; renderButtons(); } }
+  }
+}
+function renderAll() { renderButtons(); renderDpi(); renderLight(); renderMore(); }
+
+async function load() {
+  const s = await api("/api/state");
+  M = s.meta; C0 = clone(s.config); C = clone(C0); LIVE = s;
+  renderAll(); renderLive(); dirty();
+  setInterval(async () => { try { LIVE = await api("/api/live"); renderLive(); } catch (e) {} }, 700);
+}
+load();
+</script>
+</body>
+</html>

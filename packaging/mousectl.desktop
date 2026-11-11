@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Mouse Settings (mousectl)
+Comment=Buttons, DPI and lighting for the Instant A704 gaming mouse
+Exec=sh -c '"$HOME/.local/bin/mousectl" gui'
+Icon=input-mouse
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=mouse;DPI;buttons;RGB;

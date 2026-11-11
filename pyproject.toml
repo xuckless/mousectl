@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mousectl"
+version = "0.1.0"
+description = "Buttons, DPI and lighting for the Instant A704 gaming mouse (30fa:1701) on Linux"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-2.0-or-later"
+license-files = ["LICENSE"]
+dependencies = []
+
+[project.scripts]
+mousectl = "mousectl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mousectl = ["static/*.html"]

@@ -1,0 +1,11 @@
+[Unit]
+Description=mousectl: keep the Instant A704 mouse configured and run its key/media/macro buttons
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/mousectl daemon
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
